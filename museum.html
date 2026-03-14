@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Gallery — An Interactive Museum</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cream: #F5F0E8;
+    --parchment: #EDE4D0;
+    --ink: #1A1612;
+    --ink-soft: #3D3530;
+    --brown: #7A5C3E;
+    --gold: #B8922A;
+    --gold-lt: #D4AB4A;
+    --rust: #8B3A2A;
+    --sage: #5A6B52;
+    --bg: #F0EAD8;
+    --card: #FAF6EE;
+    --border: rgba(90, 60, 30, 0.18);
+  }
+
+  html { font-size: 16px; }
+
+  body {
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(ellipse at 20% 10%, rgba(184,146,42,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 90%, rgba(139,58,42,0.05) 0%, transparent 50%);
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    color: var(--ink);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.6rem 2.5rem 1.2rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(245,240,232,0.85);
+    backdrop-filter: blur(6px);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+  }
+  .logo span { color: var(--gold); font-style: italic; }
+  .progress-dots { display: flex; gap: 10px; align-items: center; }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border);
+    transition: background 0.4s, transform 0.3s;
+  }
+  .dot.active { background: var(--gold); transform: scale(1.3); }
+  .dot.done { background: var(--sage); }
+
+  /* ── MAIN LAYOUT ── */
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2.5rem 2rem 4rem;
+    display: grid;
+    gap: 2rem;
+  }
+
+  /* ── ARTWORK PANEL ── */
+  .artwork-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  .frame-wrapper {
+    position: relative;
+    cursor: crosshair;
+  }
+  .frame-outer {
+    padding: 18px;
+    background:
+      linear-gradient(135deg, #c9a84c 0%, #8B6914 25%, #c9a84c 50%, #8B6914 75%, #c9a84c 100%);
+    border-radius: 2px;
+    box-shadow:
+      0 0 0 1px rgba(0,0,0,0.3),
+      4px 4px 20px rgba(0,0,0,0.35),
+      8px 8px 40px rgba(0,0,0,0.15);
+    position: relative;
+  }
+  .frame-inner {
+    padding: 10px;
+    background: #3D2B0A;
+    position: relative;
+  }
+  .artwork-img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4/3;
+    object-fit: cover;
+    filter: sepia(0.12) contrast(1.05);
+    transition: filter 0.5s;
+  }
+  .artwork-img.spotlight { filter: sepia(0) contrast(1.1) brightness(1.05); }
+
+  /* Detail hotspots */
+  .hotspot {
+    position: absolute;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,220,80,0.85);
+    background: rgba(255,200,40,0.25);
+    cursor: pointer;
+    transform: translate(-50%, -50%);
+    animation: pulse 2.2s ease-in-out infinite;
+    transition: opacity 0.4s;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 500;
+    color: rgba(255,220,80,1);
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,200,40,0.5); }
+    50%       { box-shadow: 0 0 0 8px rgba(255,200,40,0); }
+  }
+  .hotspot-tooltip {
+    position: absolute;
+    background: rgba(26,22,18,0.92);
+    color: var(--cream);
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 0.8rem;
+    padding: 5px 10px;
+    border-radius: 3px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    left: 26px; top: -4px;
+    z-index: 10;
+  }
+  .hotspot:hover .hotspot-tooltip { opacity: 1; }
+
+  /* Plaque */
+  .plaque {
+    margin-top: 0.8rem;
+    text-align: center;
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 0.6rem 1rem;
+    border-radius: 1px;
+  }
+  .plaque-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.05rem;
+    font-style: italic;
+    color: var(--ink);
+  }
+  .plaque-sub {
+    font-size: 0.8rem;
+    color: var(--brown);
+    letter-spacing: 0.06em;
+    margin-top: 2px;
+  }
+
+  /* ── INTERACTION PANEL ── */
+  .interaction-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.4rem;
+  }
+
+  .step-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 1.4rem 1.6rem;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.55s ease, transform 0.55s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .step-card::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px;
+  }
+  .step-card.observe::before { background: var(--sage); }
+  .step-card.question::before { background: var(--gold); }
+  .step-card.history::before { background: var(--rust); }
+
+  .step-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .step-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 0.7rem;
+  }
+  .step-card.observe .step-label { color: var(--sage); }
+  .step-card.question .step-label { color: var(--gold); }
+  .step-card.history .step-label { color: var(--rust); }
+
+  .step-text {
+    font-size: 1.05rem;
+    line-height: 1.75;
+    color: var(--ink-soft);
+  }
+
+  /* Answer options */
+  .answers { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1rem; }
+  .answer-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 0.65rem 1rem;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1rem;
+    color: var(--ink-soft);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.25s, background 0.25s, color 0.25s;
+    line-height: 1.5;
+  }
+  .answer-btn:hover:not(:disabled) {
+    border-color: var(--gold);
+    background: rgba(184,146,42,0.06);
+    color: var(--ink);
+  }
+  .answer-btn.correct {
+    border-color: var(--sage);
+    background: rgba(90,107,82,0.1);
+    color: var(--sage);
+  }
+  .answer-btn.wrong {
+    border-color: var(--rust);
+    background: rgba(139,58,42,0.07);
+    color: var(--rust);
+    opacity: 0.6;
+  }
+  .answer-btn:disabled { cursor: default; }
+
+  .feedback-msg {
+    margin-top: 0.8rem;
+    font-size: 0.95rem;
+    font-style: italic;
+    color: var(--brown);
+    min-height: 1.4em;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  .feedback-msg.show { opacity: 1; }
+
+  /* ── NAVIGATION ── */
+  .nav-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+  }
+  .nav-btn {
+    font-family: 'Playfair Display', serif;
+    font-size: 0.95rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 0.55rem 1.3rem;
+    color: var(--ink-soft);
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: all 0.25s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .nav-btn:hover:not(:disabled) {
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-btn.primary {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: var(--cream);
+  }
+  .nav-btn.primary:hover { background: var(--gold-lt); border-color: var(--gold-lt); }
+
+  .artwork-counter {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--brown);
+    letter-spacing: 0.08em;
+  }
+
+  /* ── COMPLETION ── */
+  .completion {
+    text-align: center;
+    padding: 4rem 2rem;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.2rem;
+    animation: fadeIn 0.8s ease forwards;
+  }
+  .completion.show { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .completion-icon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+  }
+  .completion h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    font-style: italic;
+    color: var(--gold);
+  }
+  .completion p {
+    font-size: 1.1rem;
+    color: var(--ink-soft);
+    max-width: 500px;
+    line-height: 1.7;
+  }
+  .restart-btn {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    background: var(--ink);
+    color: var(--cream);
+    border: none;
+    border-radius: 2px;
+    padding: 0.75rem 2rem;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    margin-top: 0.5rem;
+    transition: background 0.25s;
+  }
+  .restart-btn:hover { background: var(--ink-soft); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 720px) {
+    .artwork-panel { grid-template-columns: 1fr; }
+    header { padding: 1.2rem 1.2rem; }
+    .logo { font-size: 1.2rem; }
+    main { padding: 1.5rem 1rem 3rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">The <span>Gallery</span></div>
+  <div class="progress-dots" id="dots"></div>
+</header>
+
+<main id="main-content">
+  <!-- Artwork panel -->
+  <div class="artwork-panel" id="artwork-panel">
+    <div>
+      <div class="frame-wrapper" id="frame-wrapper">
+        <div class="frame-outer">
+          <div class="frame-inner">
+            <img id="artwork-img" class="artwork-img" src="" alt="Artwork" />
+            <div id="hotspots-layer"></div>
+          </div>
+        </div>
+        <div class="plaque">
+          <div class="plaque-title" id="plaque-title"></div>
+          <div class="plaque-sub" id="plaque-sub"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="interaction-panel">
+      <!-- Observe -->
+      <div class="step-card observe" id="card-observe">
+        <div class="step-label">&#x1F441; Observe</div>
+        <div class="step-text" id="observe-text"></div>
+      </div>
+
+      <!-- Question -->
+      <div class="step-card question" id="card-question">
+        <div class="step-label">&#x2753; Question</div>
+        <div class="step-text" id="question-text"></div>
+        <div class="answers" id="answers-list"></div>
+        <div class="feedback-msg" id="feedback-msg"></div>
+      </div>
+
+      <!-- History -->
+      <div class="step-card history" id="card-history">
+        <div class="step-label">&#x1F4DC; Historical context</div>
+        <div class="step-text" id="history-text"></div>
+      </div>
+
+      <div class="nav-row">
+        <button class="nav-btn" id="prev-btn" onclick="navigate(-1)">&#8592; Previous</button>
+        <span class="artwork-counter" id="counter"></span>
+        <button class="nav-btn primary" id="next-btn" onclick="navigate(1)">Next &#8594;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Completion screen -->
+  <div class="completion" id="completion-screen">
+    <div class="completion-icon">🖼</div>
+    <h2>Tour Complete</h2>
+    <p>You have visited all three masterworks in today's collection. We hope these windows into the past have stirred your curiosity.</p>
+    <button class="restart-btn" onclick="restart()">Begin Again</button>
+  </div>
+</main>
+
+<script>
+const artworks = [
+  {
+    title: "Girl with a Pearl Earring",
+    subtitle: "Johannes Vermeer · c. 1665",
+    img: "https://wsrv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/0/0f/1665_Girl_with_a_Pearl_Earring.jpg/800px-1665_Girl_with_a_Pearl_Earring.jpg&w=800",
+    imgFallback: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/1665_Girl_with_a_Pearl_Earring.jpg/800px-1665_Girl_with_a_Pearl_Earring.jpg",
+    hotspots: [
+      { x: 52, y: 38, label: "The luminous pearl" },
+      { x: 45, y: 28, label: "Gaze direction" },
+      { x: 38, y: 18, label: "Deep blue turban" }
+    ],
+    observe: "Notice the way the subject turns toward the viewer mid-glance — as if she has just been called. Study the soft gradation of light on her cheek against the near-black background, and the single teardrop earring catching its own tiny star of light.",
+    question: "What technique does Vermeer use to create the illusion of glowing skin?",
+    answers: [
+      { text: "Chiaroscuro — dramatic contrast of dark and light tones", correct: true },
+      { text: "Pointillism — thousands of tiny colour dots blended by the eye", correct: false },
+      { text: "Fresco — pigment applied directly to wet plaster", correct: false },
+      { text: "Encaustic — pigments suspended in heated beeswax", correct: false }
+    ],
+    feedback_correct: "Exactly right. Vermeer's mastery of chiaroscuro — borrowed from Caravaggio's tradition — gives his figures their almost photographic warmth.",
+    feedback_wrong: "Not quite. The technique is chiaroscuro: the layering of dark and light that makes the skin appear to emit its own glow.",
+    history: "Painted around 1665 in Delft, this work belongs to a genre known as a tronie — a study of an anonymous face in exotic costume, not a commissioned portrait. Vermeer may have used a camera obscura to project the scene onto his canvas, achieving that uncanny precision. The painting remained relatively obscure until 1881, when it sold at auction for just two guilders and thirty cents."
+  },
+  {
+    title: "The Starry Night",
+    subtitle: "Vincent van Gogh · 1889",
+    img: "https://wsrv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg&w=1280",
+    imgFallback: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg",
+    hotspots: [
+      { x: 15, y: 25, label: "Flame-like cypress" },
+      { x: 55, y: 30, label: "Swirling nebula" },
+      { x: 80, y: 70, label: "Sleeping village" }
+    ],
+    observe: "Let your eye follow the rhythmic swirls of the sky — they move like currents in water, or wind made visible. Notice how the village below sits perfectly still and quiet, a counterpoint to the cosmic turbulence above. The cypress at the left reaches upward like a dark flame bridging earth and sky.",
+    question: "From where did van Gogh paint The Starry Night?",
+    answers: [
+      { text: "From his window at the Saint-Paul-de-Mausole asylum in Saint-Rémy", correct: true },
+      { text: "En plein air in the wheat fields just outside Arles", correct: false },
+      { text: "From memory in his yellow house studio in Paris", correct: false },
+      { text: "While travelling by boat through the Rhône delta", correct: false }
+    ],
+    feedback_correct: "Correct. Van Gogh was voluntarily committed at the time and painted the view from his room — though the church steeple is more Dutch than Provençal, suggesting memory blended with observation.",
+    feedback_wrong: "Not quite. Van Gogh painted this from the window of his room at the Saint-Paul-de-Mausole asylum, where he had committed himself in 1889.",
+    history: "Van Gogh completed this work in June 1889, just a year before his death. He described it in a letter to his brother Theo as a failure — he was dissatisfied with working by night from imagination. Ironically it became his most celebrated painting. Recent fluid-dynamics research discovered that the painting's turbulent swirls match the mathematical equations for atmospheric turbulence, suggesting van Gogh intuitively captured phenomena not described by science until decades later."
+  },
+  {
+    title: "The Birth of Venus",
+    subtitle: "Sandro Botticelli · c. 1484–1486",
+    img: "https://wsrv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/2/26/Sandro_Botticelli_-_La_nascita_di_Venere_-_Google_Art_Project_-_edited.jpg/900px-Sandro_Botticelli_-_La_nascita_di_Venere_-_Google_Art_Project_-_edited.jpg",
+    imgFallback: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Sandro_Botticelli_-_La_nascita_di_Venere_-_Google_Art_Project_-_edited.jpg/900px-Sandro_Botticelli_-_La_nascita_di_Venere_-_Google_Art_Project_-_edited.jpg",
+    hotspots: [
+      { x: 49, y: 28, label: "Venus's contrapposto pose" },
+      { x: 20, y: 40, label: "Zephyr & Chloris" },
+      { x: 78, y: 55, label: "Flora's floral cloak" }
+    ],
+    observe: "Venus stands in a pose borrowed from classical antiquity — weight shifted, hair used as a modest veil. Notice how the wind gods at left blow not just the goddess's auburn hair but also a shower of roses. The handmaiden at right rushes forward with an embroidered cloak, transforming arrival into a delicate choreography.",
+    question: "Who commissioned The Birth of Venus?",
+    answers: [
+      { text: "A member of the Medici family, likely Lorenzo di Pierfrancesco de' Medici", correct: true },
+      { text: "Pope Sixtus IV for the newly built Sistine Chapel", correct: false },
+      { text: "The Republic of Florence as a civic gift to the city", correct: false },
+      { text: "Botticelli himself, as a personal devotional work", correct: false }
+    ],
+    feedback_correct: "Well done. The painting was almost certainly made for a Medici villa — the family's patronage of Neo-Platonic humanist art in Florence made such mythological subjects fashionable and philosophically respectable.",
+    feedback_wrong: "Not quite. The work was commissioned by — or connected to — the Medici family, most likely Lorenzo di Pierfrancesco, a cousin of Lorenzo the Magnificent.",
+    history: "Painted in tempera on canvas — an unusual choice that gives it a matte, almost fresco-like quality — this work emerged from the Neo-Platonic intellectual circle around the Medici court in Florence. Botticelli's Venus is modelled after a classical Venus pudica sculpture, fusing pagan antiquity with Renaissance idealism. For centuries after Botticelli's death his work fell out of fashion; it was the Pre-Raphaelites in the 19th century who rediscovered his sinuous lines and revived his reputation."
+  }
+];
+
+let current = 0;
+let answered = false;
+
+function buildDots() {
+  const c = document.getElementById('dots');
+  c.innerHTML = '';
+  artworks.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === current ? ' active' : (i < current ? ' done' : ''));
+    c.appendChild(d);
+  });
+}
+
+function revealCards() {
+  const ids = ['card-observe', 'card-question', 'card-history'];
+  ids.forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.classList.remove('visible');
+    setTimeout(() => el.classList.add('visible'), 120 + i * 180);
+  });
+}
+
+function buildHotspots(artwork) {
+  const layer = document.getElementById('hotspots-layer');
+  layer.innerHTML = '';
+  artwork.hotspots.forEach((h, i) => {
+    const el = document.createElement('div');
+    el.className = 'hotspot';
+    el.style.left = h.x + '%';
+    el.style.top = h.y + '%';
+    el.innerHTML = `${i + 1}<div class="hotspot-tooltip">${h.label}</div>`;
+    layer.appendChild(el);
+  });
+}
+
+function buildAnswers(artwork) {
+  const list = document.getElementById('answers-list');
+  list.innerHTML = '';
+  answered = false;
+  artwork.answers.forEach((a, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'answer-btn';
+    btn.textContent = a.text;
+    btn.onclick = () => handleAnswer(btn, a, artwork);
+    list.appendChild(btn);
+  });
+  const fb = document.getElementById('feedback-msg');
+  fb.textContent = '';
+  fb.classList.remove('show');
+}
+
+function handleAnswer(btn, a, artwork) {
+  if (answered) return;
+  answered = true;
+  const allBtns = document.querySelectorAll('.answer-btn');
+  allBtns.forEach(b => {
+    b.disabled = true;
+    const match = artwork.answers.find(x => x.text === b.textContent);
+    if (match && match.correct) b.classList.add('correct');
+  });
+  if (!a.correct) btn.classList.add('wrong');
+  const fb = document.getElementById('feedback-msg');
+  fb.textContent = a.correct ? artwork.feedback_correct : artwork.feedback_wrong;
+  fb.classList.add('show');
+
+  // Reveal history after answering
+  document.getElementById('card-history').classList.remove('visible');
+  setTimeout(() => document.getElementById('card-history').classList.add('visible'), 300);
+}
+
+function loadArtwork(idx) {
+  const art = artworks[idx];
+
+  // Img
+  const img = document.getElementById('artwork-img');
+  img.classList.remove('spotlight');
+  img.onerror = function() {
+    if (art.imgFallback && this.src !== art.imgFallback) this.src = art.imgFallback;
+  };
+  img.src = art.img;
+  img.alt = art.title;
+  setTimeout(() => img.classList.add('spotlight'), 600);
+
+  // Plaque
+  document.getElementById('plaque-title').textContent = art.title;
+  document.getElementById('plaque-sub').textContent = art.subtitle;
+
+  // Text
+  document.getElementById('observe-text').textContent = art.observe;
+  document.getElementById('question-text').textContent = art.question;
+  document.getElementById('history-text').textContent = art.history;
+
+  buildHotspots(art);
+  buildAnswers(art);
+  buildDots();
+
+  // Counter
+  document.getElementById('counter').textContent = `${idx + 1} / ${artworks.length}`;
+
+  // Buttons
+  document.getElementById('prev-btn').disabled = idx === 0;
+  document.getElementById('next-btn').textContent = idx === artworks.length - 1 ? 'Finish ✓' : 'Next →';
+
+  revealCards();
+}
+
+function navigate(dir) {
+  const next = current + dir;
+  if (next < 0) return;
+  if (next >= artworks.length) {
+    document.getElementById('artwork-panel').style.display = 'none';
+    document.getElementById('completion-screen').classList.add('show');
+    return;
+  }
+  current = next;
+  loadArtwork(current);
+}
+
+function restart() {
+  current = 0;
+  document.getElementById('completion-screen').classList.remove('show');
+  document.getElementById('artwork-panel').style.display = '';
+  loadArtwork(0);
+}
+
+loadArtwork(0);
+</script>
+</body>
+</html>
